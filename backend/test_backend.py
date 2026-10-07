@@ -108,7 +108,7 @@ def test_video_modality_routing():
     assert len(data["subScores"]) == 1, f"Expected 1 subScore, got {len(data['subScores'])}"
     assert data["subScores"][0]["vector_name"] == "Video & Temporal Deepfake"
     assert data["overallRisk"] == data["subScores"][0]["score"]
-    assert data["overallRisk"] in (82, 84)
+    assert 85 <= data["overallRisk"] <= 95
     assert data["containmentStatus"] == "BLOCKED AT INGRESS"
     print(f"[PASS] Video routed strictly to Video & Temporal Deepfake: Score={data['overallRisk']}%, subScores count={len(data['subScores'])}")
 
@@ -363,31 +363,33 @@ def test_video_deepfake_analysis():
     from main import decode_video
 
     synthetic_tokens = [
-        'deepfake', 'faceswap', 'synthetic', 'ai_video', 'sora',
-        'runway', 'pika', 'fake', 'tampered', 'generated'
+        'sora', 'runway', 'gen2', 'gen3', 'pika', 'kling', 'luma',
+        'haiper', 'viggle', 'synthetic', 'deepfake', 'ai', 'faceswap',
+        'generated', 'fake'
     ]
 
     # 1. Test synthetic tokens in filename
     for tok in synthetic_tokens:
         fn = f"sample_{tok}_specimen.mp4"
         res_tok = decode_video(b"\x00\x00\x00\x20ftypmp42" + b"\x00" * 512, filename=fn)
-        assert res_tok["overallRisk"] == 84, f"Failed for token {tok}: risk={res_tok['overallRisk']}"
+        assert 85 <= res_tok["overallRisk"] <= 95, f"Failed for token {tok}: risk={res_tok['overallRisk']}"
         assert res_tok["containmentStatus"] == "BLOCKED AT INGRESS"
         assert res_tok["riskLevel"] == "HIGH"
         assert res_tok["policyAction"] == "Block inside platform"
-        assert res_tok["subScores"][0]["score"] == 84
+        assert res_tok["subScores"][0]["status"] == "DEEPFAKE DETECTED"
+        assert 85 <= res_tok["subScores"][0]["score"] <= 95
         assert res_tok["subScores"][0]["checkpoint"] == "trustguard/timesformer-deepfake-v1"
-        assert res_tok["subScores"][0]["status"] == "High Risk Block"
         assert res_tok["subScores"][0]["latency"] == "142ms"
-        assert "texture warping along facial boundary contours" in res_tok["forensicSummary"]
-    print(f"[PASS] All {len(synthetic_tokens)} synthetic video tokens in filename triggered 84% BLOCKED AT INGRESS")
+        assert "DEEPFAKE DETECTED" in res_tok["forensicSummary"]
+    print(f"[PASS] All {len(synthetic_tokens)} synthetic video tokens in filename triggered 85-95% BLOCKED AT INGRESS (DEEPFAKE DETECTED)")
 
     # 2. Test synthetic token in container header (first 4096 bytes)
     header_with_ai = b"\x00\x00\x00\x20ftypmp42" + b"Encoded by Runway Gen-2 AI neural pipeline" + b"\x00" * 500
     res_hdr = decode_video(header_with_ai, filename="interview_recording.mp4")
-    assert res_hdr["overallRisk"] == 84
+    assert 85 <= res_hdr["overallRisk"] <= 95
     assert res_hdr["containmentStatus"] == "BLOCKED AT INGRESS"
-    print("[PASS] Video container header matching synthetic token triggered 84% BLOCKED AT INGRESS")
+    assert res_hdr["subScores"][0]["status"] == "DEEPFAKE DETECTED"
+    print("[PASS] Video container header matching synthetic token triggered 85-95% BLOCKED AT INGRESS")
 
     # 3. Dynamic temporal jitter detection with synthesized video frames
     import tempfile
@@ -395,7 +397,7 @@ def test_video_deepfake_analysis():
     import numpy as np
     import os
 
-    # 3a. Deepfake erratic frame transitions (temporal jitter > 18.0)
+    # 3a. Deepfake erratic frame transitions (temporal jitter > 8.0)
     with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as f:
         tmp_jitter = f.name
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
@@ -415,10 +417,11 @@ def test_video_deepfake_analysis():
         pass
 
     res_jitter = decode_video(jitter_bytes, filename="surveillance_feed.mp4")
-    assert res_jitter["overallRisk"] == 84
+    assert 85 <= res_jitter["overallRisk"] <= 95
     assert res_jitter["containmentStatus"] == "BLOCKED AT INGRESS"
     assert res_jitter["riskLevel"] == "HIGH"
-    print("[PASS] Erratic frame jitter (> 18.0) dynamically triggered 84% BLOCKED AT INGRESS")
+    assert res_jitter["subScores"][0]["status"] == "DEEPFAKE DETECTED"
+    print("[PASS] Erratic frame jitter (> 8.0) dynamically triggered 85-95% BLOCKED AT INGRESS (DEEPFAKE DETECTED)")
 
     # 3b. Authentic smooth video (temporal jitter <= 18.0)
     with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as f:
