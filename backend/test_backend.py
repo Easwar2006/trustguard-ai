@@ -108,8 +108,13 @@ def test_video_modality_routing():
     assert len(data["subScores"]) == 1, f"Expected 1 subScore, got {len(data['subScores'])}"
     assert data["subScores"][0]["vector_name"] == "Video & Temporal Deepfake"
     assert data["overallRisk"] == data["subScores"][0]["score"]
-    assert 85 <= data["overallRisk"] <= 95
+    assert 88 <= data["overallRisk"] <= 94
     assert data["containmentStatus"] == "BLOCKED AT INGRESS"
+    assert data["label"] == "DEEPFAKE / SYNTHETIC AI VIDEO DETECTED"
+    assert "breakdown" in data
+    assert "Diffusion-based temporal smoothing detected" in data["breakdown"]
+    assert "Synthetic facial warp during phoneme articulation" in data["breakdown"]
+    assert "Watermark signature detected: Kling AI" in data["breakdown"]
     print(f"[PASS] Video routed strictly to Video & Temporal Deepfake: Score={data['overallRisk']}%, subScores count={len(data['subScores'])}")
 
 
@@ -372,24 +377,29 @@ def test_video_deepfake_analysis():
     for tok in synthetic_tokens:
         fn = f"sample_{tok}_specimen.mp4"
         res_tok = decode_video(b"\x00\x00\x00\x20ftypmp42" + b"\x00" * 512, filename=fn)
-        assert 85 <= res_tok["overallRisk"] <= 95, f"Failed for token {tok}: risk={res_tok['overallRisk']}"
+        assert 88 <= res_tok["overallRisk"] <= 94, f"Failed for token {tok}: risk={res_tok['overallRisk']}"
         assert res_tok["containmentStatus"] == "BLOCKED AT INGRESS"
         assert res_tok["riskLevel"] == "HIGH"
         assert res_tok["policyAction"] == "Block inside platform"
-        assert res_tok["subScores"][0]["status"] == "DEEPFAKE DETECTED"
-        assert 85 <= res_tok["subScores"][0]["score"] <= 95
+        assert res_tok["label"] == "DEEPFAKE / SYNTHETIC AI VIDEO DETECTED"
+        assert res_tok["subScores"][0]["status"] == "DEEPFAKE / SYNTHETIC AI VIDEO DETECTED"
+        assert 88 <= res_tok["subScores"][0]["score"] <= 94
         assert res_tok["subScores"][0]["checkpoint"] == "trustguard/timesformer-deepfake-v1"
         assert res_tok["subScores"][0]["latency"] == "142ms"
-        assert "DEEPFAKE DETECTED" in res_tok["forensicSummary"]
-    print(f"[PASS] All {len(synthetic_tokens)} synthetic video tokens in filename triggered 85-95% BLOCKED AT INGRESS (DEEPFAKE DETECTED)")
+        assert "DEEPFAKE / SYNTHETIC AI VIDEO DETECTED" in res_tok["forensicSummary"]
+        assert "Diffusion-based temporal smoothing detected" in res_tok["breakdown"]
+        assert "Synthetic facial warp during phoneme articulation" in res_tok["breakdown"]
+        assert "Watermark signature detected: Kling AI" in res_tok["breakdown"]
+    print(f"[PASS] All {len(synthetic_tokens)} synthetic video tokens in filename triggered 88-94% BLOCKED AT INGRESS (DEEPFAKE / SYNTHETIC AI VIDEO DETECTED)")
 
     # 2. Test synthetic token in container header (first 4096 bytes)
     header_with_ai = b"\x00\x00\x00\x20ftypmp42" + b"Encoded by Runway Gen-2 AI neural pipeline" + b"\x00" * 500
     res_hdr = decode_video(header_with_ai, filename="interview_recording.mp4")
-    assert 85 <= res_hdr["overallRisk"] <= 95
+    assert 88 <= res_hdr["overallRisk"] <= 94
     assert res_hdr["containmentStatus"] == "BLOCKED AT INGRESS"
-    assert res_hdr["subScores"][0]["status"] == "DEEPFAKE DETECTED"
-    print("[PASS] Video container header matching synthetic token triggered 85-95% BLOCKED AT INGRESS")
+    assert res_hdr["label"] == "DEEPFAKE / SYNTHETIC AI VIDEO DETECTED"
+    assert res_hdr["subScores"][0]["status"] == "DEEPFAKE / SYNTHETIC AI VIDEO DETECTED"
+    print("[PASS] Video container header matching synthetic token triggered 88-94% BLOCKED AT INGRESS")
 
     # 3. Dynamic temporal jitter detection with synthesized video frames
     import tempfile
@@ -402,7 +412,6 @@ def test_video_deepfake_analysis():
         tmp_jitter = f.name
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out_jitter = cv2.VideoWriter(tmp_jitter, fourcc, 10, (100, 100))
-    # Create irregular jump patterns so standard deviation of diffs is high
     jump_values = [0, 250, 10, 240, 20, 230, 30, 220, 40, 210, 50, 200]
     for val in jump_values:
         img = np.full((100, 100, 3), val, dtype=np.uint8)
@@ -417,20 +426,59 @@ def test_video_deepfake_analysis():
         pass
 
     res_jitter = decode_video(jitter_bytes, filename="surveillance_feed.mp4")
-    assert 85 <= res_jitter["overallRisk"] <= 95
+    assert 88 <= res_jitter["overallRisk"] <= 94
     assert res_jitter["containmentStatus"] == "BLOCKED AT INGRESS"
     assert res_jitter["riskLevel"] == "HIGH"
-    assert res_jitter["subScores"][0]["status"] == "DEEPFAKE DETECTED"
-    print("[PASS] Erratic frame jitter (> 8.0) dynamically triggered 85-95% BLOCKED AT INGRESS (DEEPFAKE DETECTED)")
+    assert res_jitter["label"] == "DEEPFAKE / SYNTHETIC AI VIDEO DETECTED"
+    assert res_jitter["subScores"][0]["status"] == "DEEPFAKE / SYNTHETIC AI VIDEO DETECTED"
+    print("[PASS] Erratic frame jitter (> 8.0) dynamically triggered 88-94% BLOCKED AT INGRESS")
 
-    # 3b. Authentic smooth video (temporal jitter <= 18.0)
+    # 3b. Watermark detection: Persistent static high-contrast stamp in bottom-right corner
+    with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as f:
+        tmp_watermark = f.name
+    out_wm = cv2.VideoWriter(tmp_watermark, fourcc, 10, (100, 100))
+    for i in range(12):
+        # Moving background
+        img = np.full((100, 100, 3), 40 + (i * 15) % 150, dtype=np.uint8)
+        # Static bright watermark text/logo stamp in bottom-right corner (last 20% width, bottom 15% height: [85:100, 80:100])
+        img[86:98, 82:98] = 255
+        out_wm.write(img)
+    out_wm.release()
+
+    with open(tmp_watermark, 'rb') as f:
+        wm_bytes = f.read()
+    try:
+        os.unlink(tmp_watermark)
+    except Exception:
+        pass
+
+    res_wm = decode_video(wm_bytes, filename="clip_rendered.mp4")
+    assert 88 <= res_wm["overallRisk"] <= 94
+    assert res_wm["containmentStatus"] == "BLOCKED AT INGRESS"
+    assert res_wm["label"] == "DEEPFAKE / SYNTHETIC AI VIDEO DETECTED"
+    assert "Watermark signature detected: Kling AI" in res_wm["breakdown"]
+    print("[PASS] Corner inspection static watermark detection dynamically triggered 88-94% BLOCKED AT INGRESS")
+
+    # 3c. WhatsApp / Generic Name Flagging: Not assumed clean, evaluated on visual forensics
+    # When WhatsApp video has synthetic characteristics (e.g. erratic jump or watermark), it gets flagged
+    res_wa_fake = decode_video(jitter_bytes, filename="WhatsApp Video 2026-03-01 at 12.30.00.mp4")
+    assert 88 <= res_wa_fake["overallRisk"] <= 94
+    assert res_wa_fake["label"] == "DEEPFAKE / SYNTHETIC AI VIDEO DETECTED"
+    assert res_wa_fake["containmentStatus"] == "BLOCKED AT INGRESS"
+    print("[PASS] WhatsApp video with synthetic motion flagged as DEEPFAKE / SYNTHETIC AI VIDEO DETECTED")
+
+    # 3d. Authentic smooth video with natural camera CMOS noise (temporal jitter <= 8.0, natural texture)
     with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as f:
         tmp_clean = f.name
     out_clean = cv2.VideoWriter(tmp_clean, fourcc, 10, (100, 100))
+    # Generate frames with realistic optical sensor noise so laplacian variance >= 40.0
+    np.random.seed(42)
+    base_frame = np.random.randint(60, 180, (100, 100, 3), dtype=np.uint8)
     for i in range(15):
-        # Smooth gradual luminance shift
-        img = np.full((100, 100, 3), 100 + i * 2, dtype=np.uint8)
-        out_clean.write(img)
+        # Frame with slight natural handheld shift and camera sensor grain
+        noise = np.random.randint(-3, 4, (100, 100, 3), dtype=np.int16)
+        frame = np.clip(base_frame.astype(np.int16) + noise + i, 0, 255).astype(np.uint8)
+        out_clean.write(frame)
     out_clean.release()
 
     with open(tmp_clean, 'rb') as f:
