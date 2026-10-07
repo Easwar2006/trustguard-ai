@@ -7,6 +7,7 @@ import Analyze from './pages/Analyze';
 import Results from './pages/Results';
 import Trace from './pages/Trace';
 import Report from './pages/Report';
+import Proctor from './pages/Proctor';
 
 export default function App() {
   const location = useLocation();
@@ -33,6 +34,7 @@ export default function App() {
               <Route path="/results" element={<Results />} />
               <Route path="/trace" element={<Trace />} />
               <Route path="/report" element={<Report />} />
+              <Route path="/proctor" element={<Proctor />} />
             </Routes>
           </motion.div>
         </AnimatePresence>

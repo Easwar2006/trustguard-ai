@@ -15,7 +15,8 @@ import {
   Server,
   HardDrive,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Camera
 } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/api';
 
@@ -32,6 +33,7 @@ export default function Navbar() {
   const navItems = [
     { path: '/', label: 'Home', icon: Activity },
     { path: '/analyze', label: 'Analyze', icon: Search },
+    { path: '/proctor', label: 'Live Proctor', icon: Camera },
     { path: '/results', label: 'Results', icon: ShieldAlert },
     { path: '/trace', label: 'Trace', icon: GitBranch },
     { path: '/report', label: 'Report', icon: FileText }

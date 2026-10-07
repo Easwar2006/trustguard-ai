@@ -9,4 +9,5 @@ export const API_ENDPOINTS = {
   HEALTH: `${API_BASE_URL}/api/health`,
   ANALYZE: `${API_BASE_URL}/api/analyze`,
   TRACE: (phash) => `${API_BASE_URL}/api/trace/${encodeURIComponent(phash)}`,
+  PROCTOR_VERIFY: `${API_BASE_URL}/api/proctor/verify-frame`,
 };

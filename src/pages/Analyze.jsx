@@ -27,10 +27,12 @@ import {
   FileSpreadsheet,
   Check,
   AlertTriangle,
-  AlertOctagon
+  AlertOctagon,
+  Camera
 } from 'lucide-react';
 import { DEFAULT_INCIDENT, AUTHENTIC_PHOTO_DATA } from '../data/demoData';
 import { API_ENDPOINTS } from '../config/api';
+import LiveProctorHUD from '../components/LiveProctorHUD';
 
 // Dedicated single-modality fallback generator
 export const getFallbackForTab = (tab = 'doc', filename = '') => {
@@ -265,7 +267,8 @@ export default function Analyze() {
     { id: 'audio', label: 'Audio & Voice', symbol: '⬡', icon: Mic, desc: 'Cloned Vocoders & Voice Conversion' },
     { id: 'text', label: 'Scam Text', symbol: '⬡', icon: MessageSquare, desc: 'Urgency & Authority Impersonation' },
     { id: 'doc', label: 'Document & AI Image', symbol: '⬡', icon: FileCheck, desc: 'Synthetic AI Images, Aadhaar & Passports' },
-    { id: 'stream', label: 'Live Stream', symbol: '⬡', icon: Radio, desc: 'RTSP CCTV & Boundary Feeds' }
+    { id: 'stream', label: 'Live Stream', symbol: '⬡', icon: Radio, desc: 'RTSP CCTV & Boundary Feeds' },
+    { id: 'proctor', label: 'Live Proctor', symbol: '⬡', icon: Camera, desc: 'Webcam AI Anti-Cheat Monitor' }
   ];
 
   // Drag and drop handlers
@@ -512,7 +515,7 @@ export default function Analyze() {
       </div>
 
       {/* 1. Modality Selector Tabs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 p-1.5 rounded-2xl bg-holoCard border border-holoBorder shadow-xl">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 p-1.5 rounded-2xl bg-holoCard border border-holoBorder shadow-xl">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -542,8 +545,13 @@ export default function Analyze() {
         })}
       </div>
 
-      {/* 2. Main Ingestion Workstation */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      {/* 2. Main Ingestion Workstation / Live Proctor HUD */}
+      {activeTab === 'proctor' ? (
+        <div className="w-full">
+          <LiveProctorHUD standalone={false} />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
         {/* Left Column (8 cols): Interactive Preview / Uploader */}
         <div className="lg:col-span-8 space-y-6">
@@ -1196,6 +1204,7 @@ export default function Analyze() {
         </div>
 
       </div>
+      )}
 
       {/* 3. Phased 3-Second Processing Sequence Overlay Modal */}
       <AnimatePresence>

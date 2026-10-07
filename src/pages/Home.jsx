@@ -12,7 +12,8 @@ import {
   Info,
   Radio,
   Clock,
-  Layers
+  Layers,
+  Camera
 } from 'lucide-react';
 import { INCIDENT_DATA } from '../data/demoData';
 
@@ -57,6 +58,38 @@ export default function Home() {
       
       {/* 3D Holographic Sphere Hero Component */}
       <HoloSphereHero />
+
+      {/* Live Webcam Proctor Callout Banner */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="p-6 rounded-2xl bg-gradient-to-r from-holoCard via-cyan-950/30 to-holoCard border border-cyanGlow/40 shadow-cyan-glow flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 rounded-xl bg-cyanGlow/10 border border-cyanGlow/50 flex items-center justify-center text-cyanGlow shadow-cyan-sm shrink-0">
+              <Camera className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-widest uppercase bg-cyanGlow/20 text-cyanGlow border border-cyanGlow/40">
+                  NEW CAPABILITY
+                </span>
+                <span className="text-white font-mono font-bold text-base">
+                  Live Webcam Proctor &amp; AI Anti-Cheat Monitor
+                </span>
+              </div>
+              <p className="text-xs font-mono text-gray-400 mt-1 max-w-2xl">
+                Continuous real-time candidate verification with Haar face tracking, 2D Moiré Fourier screen replay detection, and CMOS thermal noise validation.
+              </p>
+            </div>
+          </div>
+
+          <Link
+            to="/proctor"
+            className="shrink-0 px-5 py-2.5 rounded-xl bg-cyanGlow hover:bg-cyanGlow/90 text-black font-mono font-bold text-xs flex items-center space-x-2 transition-all shadow-cyan-sm hover:scale-105"
+          >
+            <span>Launch Live Proctor</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </section>
 
       {/* 4-Card Threat Vector Cards Section */}
       <ThreatVectorCards />
