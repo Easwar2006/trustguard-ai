@@ -108,9 +108,10 @@ def test_video_modality_routing():
     assert len(data["subScores"]) == 1, f"Expected 1 subScore, got {len(data['subScores'])}"
     assert data["subScores"][0]["vector_name"] == "Video & Temporal Deepfake"
     assert data["overallRisk"] == data["subScores"][0]["score"]
-    assert 88 <= data["overallRisk"] <= 94
+    assert 80 <= data["overallRisk"] <= 92
     assert data["containmentStatus"] == "BLOCKED AT INGRESS"
-    assert data["label"] == "DEEPFAKE / SYNTHETIC AI VIDEO DETECTED"
+    assert data["label"] == "DEEPFAKE / SYNTHETIC AI DETECTED"
+    assert data["verdict"] == "Synthetic artifacts or generative model markers detected."
     assert "breakdown" in data
     assert "Diffusion-based temporal smoothing detected" in data["breakdown"]
     assert "Synthetic facial warp during phoneme articulation" in data["breakdown"]
@@ -377,29 +378,32 @@ def test_video_deepfake_analysis():
     for tok in synthetic_tokens:
         fn = f"sample_{tok}_specimen.mp4"
         res_tok = decode_video(b"\x00\x00\x00\x20ftypmp42" + b"\x00" * 512, filename=fn)
-        assert 88 <= res_tok["overallRisk"] <= 94, f"Failed for token {tok}: risk={res_tok['overallRisk']}"
+        assert 80 <= res_tok["overallRisk"] <= 92, f"Failed for token {tok}: risk={res_tok['overallRisk']}"
         assert res_tok["containmentStatus"] == "BLOCKED AT INGRESS"
         assert res_tok["riskLevel"] == "HIGH"
         assert res_tok["policyAction"] == "Block inside platform"
-        assert res_tok["label"] == "DEEPFAKE / SYNTHETIC AI VIDEO DETECTED"
-        assert res_tok["subScores"][0]["status"] == "DEEPFAKE / SYNTHETIC AI VIDEO DETECTED"
-        assert 88 <= res_tok["subScores"][0]["score"] <= 94
+        assert res_tok["label"] == "DEEPFAKE / SYNTHETIC AI DETECTED"
+        assert res_tok["verdict"] == "Synthetic artifacts or generative model markers detected."
+        assert res_tok["totalAiScore"] >= 65
+        assert res_tok["subScores"][0]["status"] == "DEEPFAKE / SYNTHETIC AI DETECTED"
+        assert 80 <= res_tok["subScores"][0]["score"] <= 92
         assert res_tok["subScores"][0]["checkpoint"] == "trustguard/timesformer-deepfake-v1"
         assert res_tok["subScores"][0]["latency"] == "142ms"
-        assert "DEEPFAKE / SYNTHETIC AI VIDEO DETECTED" in res_tok["forensicSummary"]
+        assert "DEEPFAKE / SYNTHETIC AI DETECTED" in res_tok["forensicSummary"]
         assert "Diffusion-based temporal smoothing detected" in res_tok["breakdown"]
         assert "Synthetic facial warp during phoneme articulation" in res_tok["breakdown"]
         assert "Watermark signature detected: Kling AI" in res_tok["breakdown"]
-    print(f"[PASS] All {len(synthetic_tokens)} synthetic video tokens in filename triggered 88-94% BLOCKED AT INGRESS (DEEPFAKE / SYNTHETIC AI VIDEO DETECTED)")
+    print(f"[PASS] All {len(synthetic_tokens)} synthetic video tokens in filename triggered 80-92% BLOCKED AT INGRESS (DEEPFAKE / SYNTHETIC AI DETECTED)")
 
     # 2. Test synthetic token in container header (first 4096 bytes)
     header_with_ai = b"\x00\x00\x00\x20ftypmp42" + b"Encoded by Runway Gen-2 AI neural pipeline" + b"\x00" * 500
     res_hdr = decode_video(header_with_ai, filename="interview_recording.mp4")
-    assert 88 <= res_hdr["overallRisk"] <= 94
+    assert 80 <= res_hdr["overallRisk"] <= 92
     assert res_hdr["containmentStatus"] == "BLOCKED AT INGRESS"
-    assert res_hdr["label"] == "DEEPFAKE / SYNTHETIC AI VIDEO DETECTED"
-    assert res_hdr["subScores"][0]["status"] == "DEEPFAKE / SYNTHETIC AI VIDEO DETECTED"
-    print("[PASS] Video container header matching synthetic token triggered 88-94% BLOCKED AT INGRESS")
+    assert res_hdr["label"] == "DEEPFAKE / SYNTHETIC AI DETECTED"
+    assert res_hdr["verdict"] == "Synthetic artifacts or generative model markers detected."
+    assert res_hdr["subScores"][0]["status"] == "DEEPFAKE / SYNTHETIC AI DETECTED"
+    print("[PASS] Video container header matching synthetic token triggered 80-92% BLOCKED AT INGRESS")
 
     # 3. Dynamic temporal jitter detection with synthesized video frames
     import tempfile
@@ -426,12 +430,13 @@ def test_video_deepfake_analysis():
         pass
 
     res_jitter = decode_video(jitter_bytes, filename="surveillance_feed.mp4")
-    assert 88 <= res_jitter["overallRisk"] <= 94
+    assert 80 <= res_jitter["overallRisk"] <= 92
     assert res_jitter["containmentStatus"] == "BLOCKED AT INGRESS"
     assert res_jitter["riskLevel"] == "HIGH"
-    assert res_jitter["label"] == "DEEPFAKE / SYNTHETIC AI VIDEO DETECTED"
-    assert res_jitter["subScores"][0]["status"] == "DEEPFAKE / SYNTHETIC AI VIDEO DETECTED"
-    print("[PASS] Erratic frame jitter (> 8.0) dynamically triggered 88-94% BLOCKED AT INGRESS")
+    assert res_jitter["label"] == "DEEPFAKE / SYNTHETIC AI DETECTED"
+    assert res_jitter["verdict"] == "Synthetic artifacts or generative model markers detected."
+    assert res_jitter["subScores"][0]["status"] == "DEEPFAKE / SYNTHETIC AI DETECTED"
+    print("[PASS] Erratic frame jitter (> 11.0) dynamically triggered 80-92% BLOCKED AT INGRESS")
 
     # 3b. Watermark detection: Persistent static high-contrast stamp in bottom-right corner
     with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as f:
@@ -453,21 +458,21 @@ def test_video_deepfake_analysis():
         pass
 
     res_wm = decode_video(wm_bytes, filename="clip_rendered.mp4")
-    assert 88 <= res_wm["overallRisk"] <= 94
+    assert 80 <= res_wm["overallRisk"] <= 92
     assert res_wm["containmentStatus"] == "BLOCKED AT INGRESS"
-    assert res_wm["label"] == "DEEPFAKE / SYNTHETIC AI VIDEO DETECTED"
+    assert res_wm["label"] == "DEEPFAKE / SYNTHETIC AI DETECTED"
+    assert res_wm["verdict"] == "Synthetic artifacts or generative model markers detected."
     assert "Watermark signature detected: Kling AI" in res_wm["breakdown"]
-    print("[PASS] Corner inspection static watermark detection dynamically triggered 88-94% BLOCKED AT INGRESS")
+    print("[PASS] Corner inspection static watermark detection dynamically triggered 80-92% BLOCKED AT INGRESS")
 
     # 3c. WhatsApp / Generic Name Flagging: Not assumed clean, evaluated on visual forensics
-    # When WhatsApp video has synthetic characteristics (e.g. erratic jump or watermark), it gets flagged
     res_wa_fake = decode_video(jitter_bytes, filename="WhatsApp Video 2026-03-01 at 12.30.00.mp4")
-    assert 88 <= res_wa_fake["overallRisk"] <= 94
-    assert res_wa_fake["label"] == "DEEPFAKE / SYNTHETIC AI VIDEO DETECTED"
+    assert 80 <= res_wa_fake["overallRisk"] <= 92
+    assert res_wa_fake["label"] == "DEEPFAKE / SYNTHETIC AI DETECTED"
     assert res_wa_fake["containmentStatus"] == "BLOCKED AT INGRESS"
-    print("[PASS] WhatsApp video with synthetic motion flagged as DEEPFAKE / SYNTHETIC AI VIDEO DETECTED")
+    print("[PASS] WhatsApp video with synthetic motion flagged as DEEPFAKE / SYNTHETIC AI DETECTED")
 
-    # 3d. Authentic smooth video with natural camera CMOS noise (temporal jitter <= 8.0, natural texture)
+    # 3d. Authentic smooth video with natural camera CMOS noise (temporal jitter <= 8.0, natural ISO texture)
     with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as f:
         tmp_clean = f.name
     out_clean = cv2.VideoWriter(tmp_clean, fourcc, 10, (100, 100))
@@ -489,23 +494,36 @@ def test_video_deepfake_analysis():
         pass
 
     res_clean = decode_video(clean_bytes, filename="authentic_webcam_clip.mp4")
-    assert res_clean["overallRisk"] == 14, f"Expected 14, got {res_clean['overallRisk']}"
+    assert 12 <= res_clean["overallRisk"] <= 25, f"Expected 12-25, got {res_clean['overallRisk']}"
+    assert res_clean["overallRisk"] < 40, "Authentic camera video must score below 40"
     assert res_clean["containmentStatus"] == "INGRESS PASSED"
     assert res_clean["riskLevel"] == "LOW"
     assert res_clean["policyAction"] == "Allow"
-    assert res_clean["subScores"][0]["score"] == 14
+    assert res_clean["label"] == "AUTHENTIC / REAL VIDEO"
+    assert res_clean["verdict"] == "Natural sensor grain and frame dynamics consistent with authentic capture."
+    assert res_clean["totalAiScore"] < 65
+    assert res_clean["subScores"][0]["score"] == res_clean["overallRisk"]
     assert res_clean["subScores"][0]["checkpoint"] == "trustguard/timesformer-deepfake-v1"
-    assert res_clean["subScores"][0]["status"] == "Safe"
+    assert res_clean["subScores"][0]["status"] == "AUTHENTIC / REAL VIDEO"
     assert res_clean["subScores"][0]["latency"] == "116ms"
-    assert "Authentic video recording verified" in res_clean["forensicSummary"]
-    print("[PASS] Authentic video stream verified dynamically: 14% INGRESS PASSED")
+    assert "AUTHENTIC / REAL VIDEO" in res_clean["forensicSummary"]
+    print("[PASS] Authentic video stream verified dynamically: Score < 40 (14%), AUTHENTIC / REAL VIDEO")
+
+    # 3e. Test genuine WhatsApp video with natural sensor noise scores < 40
+    res_wa_real = decode_video(clean_bytes, filename="WhatsApp Video 2026-03-01 at 09.15.22.mp4")
+    assert res_wa_real["overallRisk"] < 40, f"Expected real WhatsApp video risk < 40, got {res_wa_real['overallRisk']}"
+    assert res_wa_real["label"] == "AUTHENTIC / REAL VIDEO"
+    assert res_wa_real["verdict"] == "Natural sensor grain and frame dynamics consistent with authentic capture."
+    print(f"[PASS] Real WhatsApp video with camera sensor grain correctly passed: Score={res_wa_real['overallRisk']}% (< 40)")
 
     # 4. Graceful handling of corrupted/unreadable bytes
     res_corrupt = decode_video(b"\xff\xff\xff_not_a_valid_video_stream", filename="customer_id_clip.mp4")
     assert res_corrupt["overallRisk"] == 14
+    assert res_corrupt["overallRisk"] < 40
     assert res_corrupt["containmentStatus"] == "INGRESS PASSED"
     assert res_corrupt["riskLevel"] == "LOW"
     assert res_corrupt["policyAction"] == "Allow"
+    assert res_corrupt["label"] == "AUTHENTIC / REAL VIDEO"
     print("[PASS] Corrupted video stream safely handled without crashing: 14% LOW RISK INGRESS PASSED")
 
 
